@@ -1,4 +1,6 @@
-// src/pages/Home.jsx
+import TabEditor from "../components/TabEditor";
+import TabPlayer from "../components/TabPlayer";
+
 export default function Home({ user, tabs, onCreateTab, onFavorite, onLogout }) {
   return (
     <div className="min-h-screen w-full bg-slate-900 text-white flex flex-col items-center">
@@ -33,8 +35,13 @@ export default function Home({ user, tabs, onCreateTab, onFavorite, onLogout }) 
             ) : (
               <div className="space-y-4">
                 {tabs.map((tab) => (
-                  <div key={tab.id} className="bg-slate-700 p-4 rounded-xl">
-                    {tab.title}
+                  <div key={tab.id} className="bg-slate-700 p-6 rounded-xl">
+                    <h3 className="text-lg font-bold mb-4">{tab.title}</h3>
+
+                    <TabPlayer tab={tab} />
+                    <TabEditor tab={tab} onSave={(updatedTab) => {
+                      // implement updateTab in tabService
+                    }} />
                   </div>
                 ))}
               </div>

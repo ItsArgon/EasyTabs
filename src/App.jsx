@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import { auth } from "./services/firebase";
 import { loginWithGoogle, logout } from "./services/authService";
-import { createTab, getUserTabs, addFavorite } from "./services/tabService";
+import { createTab, getUserTabs, addFavorite, importTab, uploadTab } from "./services/tabService";
 import { onAuthStateChanged } from "firebase/auth";
-import Home from "./pages/home";
+import TabsBrowse from "./pages/tabsBrowse";
+import MyTabs from "./pages/myTabs";
 
 export default function App() {
   const [user, setUser] = useState(null);
   const [tabs, setTabs] = useState([]);
+  const [currentPage, setCurrentPage] = useState("browse");
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -28,6 +30,18 @@ export default function App() {
     fetchTabs();
   }, [user]);
 
+  const handleImportTab = async (tab) => {
+    try {
+      await importTab(user.uid, tab);
+      // Refresh tabs list
+      const updatedTabs = await getUserTabs(user.uid);
+      setTabs(updatedTabs);
+    } catch (error) {
+      console.error("Failed to import tab:", error);
+      throw error;
+    }
+  };
+
   const handleCreateTab = async (tabData) => {
     await createTab(user.uid, tabData);
     const updatedTabs = await getUserTabs(user.uid);
@@ -36,6 +50,22 @@ export default function App() {
 
   const handleFavorite = async (tab) => {
     await addFavorite(user.uid, tab);
+  };
+
+  const handleUploadTab = async (tabData) => {
+    try {
+      await uploadTab(user.uid, tabData);
+      // Refresh tabs list
+      const updatedTabs = await getUserTabs(user.uid);
+      setTabs(updatedTabs);
+    } catch (error) {
+      console.error("Failed to upload tab:", error);
+      throw error;
+    }
+  };
+
+  const handleNavigate = (page) => {
+    setCurrentPage(page);
   };
 
   if (!user) {
@@ -55,12 +85,26 @@ export default function App() {
   }
 
   return (
-    <Home
-      user={user}
-      tabs={tabs}
-      onCreateTab={handleCreateTab}
-      onFavorite={handleFavorite}
-      onLogout={logout}
-    />
+    <>
+      {currentPage === "browse" && (
+        <TabsBrowse
+          user={user}
+          onImportTab={handleImportTab}
+          onNavigate={handleNavigate}
+          onLogout={logout}
+        />
+      )}
+      {currentPage === "myTabs" && (
+        <MyTabs
+          user={user}
+          tabs={tabs}
+          onCreateTab={handleCreateTab}
+          onFavorite={handleFavorite}
+          onUploadTab={handleUploadTab}
+          onNavigate={handleNavigate}
+          onLogout={logout}
+        />
+      )}
+    </>
   );
 }
