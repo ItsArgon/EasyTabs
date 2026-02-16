@@ -1,6 +1,6 @@
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { doc, setDoc, getDoc, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
-import { storage, db } from './firebase-config'; // Your Firebase config
+import { storage, db } from './firebase-Config';
 
 /**
  * Upload a MIDI file to Firebase Storage and save metadata to Firestore

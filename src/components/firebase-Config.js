@@ -15,9 +15,14 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
+//Initialize Storage
+export const storage = getStorage(app);
+
+//Log for debugging
+console.log('Firebase initialized');
+console.log('Storage bucket:', storage.app.options.storageBucket);
+
 // Initialize services
 export const db = getFirestore(app);
-export const storage = getStorage(app);
 export const auth = getAuth(app);
-
 export default app;

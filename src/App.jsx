@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import MidiUpload from './components/midiUpload';
 import TabSearch from './components/TabSearch';
 import TabViewer from './components/tabViewerSafe';
+import FirebaseStorageDiagnostic from './components/FirebaseStorageDiagnostic';
 import './App.css'; // You'll need to create this for styling
 
 function App() {

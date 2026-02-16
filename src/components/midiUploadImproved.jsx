@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { doc, setDoc } from 'firebase/firestore';
-import { storage, db } from './firebase-config';
+import { storage, db } from './firebase-Config';
 
 const MidiUploadImproved = ({ onUploadComplete }) => {
   const [selectedFile, setSelectedFile] = useState(null);
