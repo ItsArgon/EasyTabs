@@ -1,110 +1,194 @@
-import { useEffect, useState } from "react";
-import { auth } from "./services/firebase";
-import { loginWithGoogle, logout } from "./services/authService";
-import { createTab, getUserTabs, addFavorite, importTab, uploadTab } from "./services/tabService";
-import { onAuthStateChanged } from "firebase/auth";
-import TabsBrowse from "./pages/tabsBrowse";
-import MyTabs from "./pages/myTabs";
+import React, { useState } from 'react';
+import MidiUpload from './components/midiUpload';
+import TabSearch from './components/TabSearch';
+import TabViewer from './components/tabViewerSafe';
+import './App.css'; // You'll need to create this for styling
 
-export default function App() {
-  const [user, setUser] = useState(null);
-  const [tabs, setTabs] = useState([]);
-  const [currentPage, setCurrentPage] = useState("browse");
+function App() {
+  const [selectedTab, setSelectedTab] = useState(null);
+  const [activeView, setActiveView] = useState('search'); // 'search' | 'upload' | 'view'
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (!user) return;
-
-    const fetchTabs = async () => {
-      const data = await getUserTabs(user.uid);
-      setTabs(data);
-    };
-
-    fetchTabs();
-  }, [user]);
-
-  const handleImportTab = async (tab) => {
-    try {
-      await importTab(user.uid, tab);
-      // Refresh tabs list
-      const updatedTabs = await getUserTabs(user.uid);
-      setTabs(updatedTabs);
-    } catch (error) {
-      console.error("Failed to import tab:", error);
-      throw error;
+  const handleTabSelect = (tab) => {
+    console.log('Tab selected:', tab);
+    if (tab && tab.id) {
+      setSelectedTab(tab);
+      setActiveView('view');
+    } else {
+      console.error('Invalid tab data:', tab);
+      alert('Unable to load this tab. Please try another one.');
     }
   };
 
-  const handleCreateTab = async (tabData) => {
-    await createTab(user.uid, tabData);
-    const updatedTabs = await getUserTabs(user.uid);
-    setTabs(updatedTabs);
-  };
-
-  const handleFavorite = async (tab) => {
-    await addFavorite(user.uid, tab);
-  };
-
-  const handleUploadTab = async (tabData) => {
-    try {
-      await uploadTab(user.uid, tabData);
-      // Refresh tabs list
-      const updatedTabs = await getUserTabs(user.uid);
-      setTabs(updatedTabs);
-    } catch (error) {
-      console.error("Failed to upload tab:", error);
-      throw error;
+  const handleUploadComplete = (tabData) => {
+    console.log('Upload complete:', tabData);
+    alert('Tab uploaded successfully!');
+    // Optionally switch to view the uploaded tab
+    if (tabData && tabData.id) {
+      setSelectedTab(tabData);
+      setActiveView('view');
+    } else {
+      // Just go back to search
+      setActiveView('search');
     }
   };
 
-  const handleNavigate = (page) => {
-    setCurrentPage(page);
+  const handleBackToSearch = () => {
+    setSelectedTab(null);
+    setActiveView('search');
   };
-
-  if (!user) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-gray-50">
-        <div className="bg-white shadow-xl p-10 rounded-2xl text-center">
-          <h1 className="text-3xl font-bold mb-4">EasyTabs</h1>
-          <button
-            onClick={loginWithGoogle}
-            className="bg-blue-600 text-white px-6 py-3 rounded-xl"
-          >
-            Login with Google
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <>
-      {currentPage === "browse" && (
-        <TabsBrowse
-          user={user}
-          onImportTab={handleImportTab}
-          onNavigate={handleNavigate}
-          onLogout={logout}
-        />
-      )}
-      {currentPage === "myTabs" && (
-        <MyTabs
-          user={user}
-          tabs={tabs}
-          onCreateTab={handleCreateTab}
-          onFavorite={handleFavorite}
-          onUploadTab={handleUploadTab}
-          onNavigate={handleNavigate}
-          onLogout={logout}
-        />
-      )}
-    </>
+    <div className="app">
+      <nav className="navbar">
+        <div className="navbar-content">
+          <h1 className="app-title">🎸 Guitar Tabs</h1>
+          <div className="nav-buttons">
+            <button 
+              className={`nav-button ${activeView === 'search' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveView('search');
+                setSelectedTab(null);
+              }}
+            >
+              🔍 Search
+            </button>
+            <button 
+              className={`nav-button ${activeView === 'upload' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveView('upload');
+                setSelectedTab(null);
+              }}
+            >
+              📤 Upload
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <main className="main-content">
+        {activeView === 'search' && (
+          <TabSearch onTabSelect={handleTabSelect} />
+        )}
+        
+        {activeView === 'upload' && (
+          <MidiUpload onUploadComplete={handleUploadComplete} />
+        )}
+        
+        {activeView === 'view' && selectedTab && (
+          <TabViewer 
+            tab={selectedTab} 
+            onBack={handleBackToSearch}
+          />
+        )}
+
+        {activeView === 'view' && !selectedTab && (
+          <div className="error-state">
+            <h2>No tab selected</h2>
+            <p>Please select a tab from the search results.</p>
+            <button onClick={() => setActiveView('search')}>
+              Go to Search
+            </button>
+          </div>
+        )}
+      </main>
+
+      <style jsx>{`
+        .app {
+          min-height: 100vh;
+          background-color: #f5f5f5;
+        }
+
+        .navbar {
+          background: white;
+          border-bottom: 1px solid #e0e0e0;
+          padding: 0;
+          position: sticky;
+          top: 0;
+          z-index: 100;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .navbar-content {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 15px 20px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .app-title {
+          margin: 0;
+          font-size: 24px;
+          color: #333;
+        }
+
+        .nav-buttons {
+          display: flex;
+          gap: 10px;
+        }
+
+        .nav-button {
+          padding: 10px 20px;
+          border: 2px solid transparent;
+          background: #f5f5f5;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s;
+        }
+
+        .nav-button:hover {
+          background: #e0e0e0;
+        }
+
+        .nav-button.active {
+          background: #4CAF50;
+          color: white;
+        }
+
+        .main-content {
+          max-width: 1400px;
+          margin: 0 auto;
+          padding: 20px;
+        }
+
+        .error-state {
+          text-align: center;
+          padding: 60px 20px;
+          background: white;
+          border-radius: 8px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .error-state h2 {
+          color: #333;
+          margin-bottom: 10px;
+        }
+
+        .error-state p {
+          color: #666;
+          margin-bottom: 20px;
+        }
+
+        .error-state button {
+          padding: 12px 24px;
+          background: #4CAF50;
+          color: white;
+          border: none;
+          border-radius: 6px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+
+        .error-state button:hover {
+          background: #45a049;
+        }
+      `}</style>
+    </div>
   );
 }
+
+export default App;

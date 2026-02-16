@@ -1,162 +1,447 @@
-import { useState } from "react";
-import { searchTabs } from "../services/tabService";
-import TabDetails from "./TabDetails";
+import React, { useState, useEffect } from 'react';
+import { searchAllTabs, sortCombinedResults } from './unifiedSearch';
 
-export default function TabSearch({ user, onImportTab }) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
+const TabSearch = ({ onTabSelect }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [selectedTab, setSelectedTab] = useState(null);
-  const [importedMessage, setImportedMessage] = useState("");
+  const [error, setError] = useState(null);
+  const [sortBy, setSortBy] = useState('relevance');
+  const [filterInstrument, setFilterInstrument] = useState('');
+  const [activeTab, setActiveTab] = useState('all'); // 'all', 'user', 'songsterr'
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
+  // Debounced search
+  useEffect(() => {
+    if (searchTerm.length < 2) {
+      setSearchResults(null);
+      return;
+    }
 
+    const timer = setTimeout(() => {
+      handleSearch();
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const handleSearch = async () => {
     setLoading(true);
+    setError(null);
+
     try {
-      const results = await searchTabs(searchQuery);
+      const results = await searchAllTabs(searchTerm, {
+        includeUserTabs: activeTab === 'all' || activeTab === 'user',
+        includeSongsterr: activeTab === 'all' || activeTab === 'songsterr',
+        instrument: filterInstrument || null,
+        maxResults: 50
+      });
+
+      console.log('Search results:', results);
+      console.log('User tabs:', results.userTabs);
+      console.log('Songsterr tabs:', results.songsterrTabs);
+      
+      // Validate results
+      if (results.userTabs) {
+        results.userTabs = results.userTabs.filter(tab => tab && tab.id && tab.source);
+      }
+      if (results.songsterrTabs) {
+        results.songsterrTabs = results.songsterrTabs.filter(tab => tab && tab.id && tab.source);
+      }
+
       setSearchResults(results);
-    } catch (error) {
-      console.error("Search error:", error);
-      setSearchResults([]);
+    } catch (err) {
+      console.error('Search error:', err);
+      setError('Failed to search tabs. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleImportTab = async (tab) => {
-    try {
-      await onImportTab(tab);
-      setImportedMessage(`"${tab.title}" imported successfully!`);
-      setTimeout(() => setImportedMessage(""), 3000);
-    } catch (error) {
-      console.error("Import error:", error);
-      setImportedMessage("Failed to import tab");
-      setTimeout(() => setImportedMessage(""), 3000);
+  const getSortedResults = () => {
+    if (!searchResults) return [];
+    return sortCombinedResults(searchResults, sortBy);
+  };
+
+  const getFilteredResults = () => {
+    const sorted = getSortedResults();
+    
+    // Filter out any null/undefined tabs
+    const validTabs = sorted.filter(tab => tab && tab.id && tab.source);
+    
+    if (activeTab === 'user') {
+      return validTabs.filter(tab => tab.source === 'user_upload');
+    } else if (activeTab === 'songsterr') {
+      return validTabs.filter(tab => tab.source === 'songsterr');
+    }
+    
+    return validTabs;
+  };
+
+  const handleTabClick = (tab) => {
+    if (!tab || !tab.id || !tab.source) {
+      console.error('Attempted to select invalid tab:', tab);
+      setError('Unable to load this tab. Please try another one.');
+      return;
+    }
+    
+    if (onTabSelect) {
+      onTabSelect(tab);
     }
   };
 
-  if (selectedTab) {
+  const renderTabCard = (tab) => {
+    // Safety check: return null if tab is invalid
+    if (!tab || !tab.id || !tab.source) {
+      console.error('Invalid tab data:', tab);
+      return null;
+    }
+    
+    const isUserTab = tab.source === 'user_upload';
+    
     return (
-      <div>
-        <button
-          onClick={() => setSelectedTab(null)}
-          className="mb-4 text-blue-400 hover:text-blue-300 flex items-center gap-2"
-        >
-          ← Back to Results
-        </button>
-        <TabDetails tab={selectedTab} onImport={() => handleImportTab(selectedTab)} />
+      <div 
+        key={tab.id} 
+        className="tab-card"
+        onClick={() => handleTabClick(tab)}
+      >
+        <div className="tab-header">
+          <h3>{tab.title}</h3>
+          <span className={`source-badge ${isUserTab ? 'user' : 'songsterr'}`}>
+            {isUserTab ? 'User Upload' : 'Songsterr'}
+          </span>
+        </div>
+        
+        <p className="artist">{tab.artist}</p>
+        
+        <div className="tab-details">
+          {tab.instrument && (
+            <span className="detail-badge">{tab.instrument}</span>
+          )}
+          {tab.difficulty && (
+            <span className="detail-badge">{tab.difficulty}</span>
+          )}
+          {tab.tuning && (
+            <span className="detail-badge">{tab.tuning}</span>
+          )}
+          {tab.tracks && tab.tracks.length > 0 && (
+            <span className="detail-badge">{tab.tracks.length} tracks</span>
+          )}
+        </div>
+
+        {tab.tags && tab.tags.length > 0 && (
+          <div className="tags">
+            {tab.tags.map((tag, index) => (
+              <span key={index} className="tag">{tag}</span>
+            ))}
+          </div>
+        )}
       </div>
     );
-  }
+  };
 
   return (
-    <div className="space-y-8">
-      {/* Search Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-12 rounded-2xl shadow-2xl">
-        <h2 className="text-4xl font-bold mb-6 text-center">Search & Import Tabs</h2>
-        <form onSubmit={handleSearch} className="flex gap-4">
+    <div className="tab-search-container">
+      <div className="search-header">
+        <h2>Search Tabs</h2>
+        
+        {/* Search Input */}
+        <div className="search-input-wrapper">
           <input
             type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search for songs, artists, or tabs..."
-            className="flex-1 px-6 py-3 rounded-lg text-white bg-slate-800 border border-slate-700 focus:border-blue-400 focus:outline-none placeholder-slate-500"
+            className="search-input"
+            placeholder="Search for songs, artists, or bands..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-8 py-3 bg-white text-blue-600 font-semibold rounded-lg hover:bg-slate-100 disabled:opacity-50"
+          {loading && <span className="loading-spinner">🔄</span>}
+        </div>
+
+        {/* Filter Controls */}
+        <div className="filter-controls">
+          {/* Source Tabs */}
+          <div className="source-tabs">
+            <button
+              className={activeTab === 'all' ? 'active' : ''}
+              onClick={() => setActiveTab('all')}
+            >
+              All Sources
+            </button>
+            <button
+              className={activeTab === 'user' ? 'active' : ''}
+              onClick={() => setActiveTab('user')}
+            >
+              My Uploads
+            </button>
+            <button
+              className={activeTab === 'songsterr' ? 'active' : ''}
+              onClick={() => setActiveTab('songsterr')}
+            >
+              Songsterr
+            </button>
+          </div>
+
+          {/* Sort By */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="sort-select"
           >
-            {loading ? "Searching..." : "Search"}
-          </button>
-        </form>
+            <option value="relevance">Sort by Relevance</option>
+            <option value="title">Sort by Title</option>
+            <option value="date">Sort by Date</option>
+          </select>
+
+          {/* Instrument Filter */}
+          <select
+            value={filterInstrument}
+            onChange={(e) => setFilterInstrument(e.target.value)}
+            className="instrument-select"
+          >
+            <option value="">All Instruments</option>
+            <option value="guitar">Guitar</option>
+            <option value="bass">Bass</option>
+            <option value="drums">Drums</option>
+            <option value="piano">Piano</option>
+          </select>
+        </div>
       </div>
 
-      {/* Import Success Message */}
-      {importedMessage && (
-        <div className="bg-green-600 text-white p-4 rounded-lg text-center">
-          {importedMessage}
+      {/* Error Message */}
+      {error && (
+        <div className="error-message">
+          {error}
         </div>
       )}
 
-      {/* Search Results */}
-      {searchResults.length > 0 && (
-        <div>
-          <h3 className="text-2xl font-bold mb-6">
-            Results ({searchResults.length})
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {searchResults.map((tab) => (
-              <div
-                key={tab.id}
-                className="bg-slate-800 rounded-xl overflow-hidden hover:bg-slate-700 transition cursor-pointer border border-slate-700 hover:border-blue-500"
-              >
-                {/* Tab Cover/Preview */}
-                <div className="bg-gradient-to-br from-purple-600 to-blue-600 h-40 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="text-4xl mb-2">🎸</div>
-                    <p className="text-sm text-slate-300">Tab Preview</p>
-                  </div>
-                </div>
-
-                {/* Tab Info */}
-                <div className="p-6">
-                  <h4 className="text-lg font-bold text-white mb-2 line-clamp-2">
-                    {tab.title}
-                  </h4>
-                  <p className="text-slate-400 text-sm mb-2">{tab.artist || "Unknown Artist"}</p>
-                  <div className="flex items-center gap-2 text-slate-500 text-xs mb-4">
-                    <span>📊 Difficulty: {tab.difficulty || "N/A"}</span>
-                  </div>
-
-                  {/* Buttons */}
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setSelectedTab(tab)}
-                      className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-lg transition"
-                    >
-                      View
-                    </button>
-                    <button
-                      onClick={() => handleImportTab(tab)}
-                      className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-lg transition font-semibold"
-                    >
-                      Import
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
+      {/* Results */}
+      <div className="search-results">
+        {searchResults && (
+          <div className="results-header">
+            <p>
+              Found {searchResults.total} results
+              {searchResults.userTabs.length > 0 && 
+                ` (${searchResults.userTabs.length} user uploads, ${searchResults.songsterrTabs.length} from Songsterr)`
+              }
+            </p>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* No Results State */}
-      {!loading && searchResults.length === 0 && searchQuery && (
-        <div className="text-center py-12">
-          <p className="text-slate-400 text-lg">No tabs found. Try a different search.</p>
-        </div>
-      )}
-
-      {/* Initial State */}
-      {!loading && searchResults.length === 0 && !searchQuery && (
-        <div className="text-center py-12">
-          <p className="text-slate-400 text-lg mb-4">Search for your favorite songs to get started</p>
-          <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
-            {["Guitar", "Bass", "Piano"].map((type) => (
-              <button
-                key={type}
-                onClick={() => setSearchQuery(type)}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded-lg transition"
-              >
-                {type}
-              </button>
-            ))}
+        {getFilteredResults().length > 0 ? (
+          <div className="results-grid">
+            {getFilteredResults()
+              .map(tab => renderTabCard(tab))
+              .filter(card => card !== null)}
           </div>
-        </div>
-      )}
+        ) : searchTerm.length >= 2 && !loading && searchResults ? (
+          <div className="no-results">
+            <p>No tabs found for "{searchTerm}"</p>
+            <p>Try a different search term or check your spelling.</p>
+          </div>
+        ) : searchTerm.length < 2 && !loading ? (
+          <div className="search-prompt">
+            <p>Start typing to search for tabs...</p>
+          </div>
+        ) : null}
+      </div>
+
+      <style jsx>{`
+        .tab-search-container {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 20px;
+        }
+
+        .search-header {
+          margin-bottom: 30px;
+        }
+
+        .search-input-wrapper {
+          position: relative;
+          margin: 20px 0;
+        }
+
+        .search-input {
+          width: 100%;
+          padding: 15px 50px 15px 15px;
+          font-size: 16px;
+          border: 2px solid #ddd;
+          border-radius: 8px;
+          transition: border-color 0.3s;
+        }
+
+        .search-input:focus {
+          outline: none;
+          border-color: #4CAF50;
+        }
+
+        .loading-spinner {
+          position: absolute;
+          right: 15px;
+          top: 50%;
+          transform: translateY(-50%);
+          animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+          from { transform: translateY(-50%) rotate(0deg); }
+          to { transform: translateY(-50%) rotate(360deg); }
+        }
+
+        .filter-controls {
+          display: flex;
+          gap: 15px;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+
+        .source-tabs {
+          display: flex;
+          gap: 5px;
+          background-color: #f0f0f0;
+          padding: 4px;
+          border-radius: 8px;
+        }
+
+        .source-tabs button {
+          padding: 8px 16px;
+          border: none;
+          background: transparent;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: 500;
+          transition: all 0.3s;
+        }
+
+        .source-tabs button.active {
+          background-color: white;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .sort-select,
+        .instrument-select {
+          padding: 8px 12px;
+          border: 1px solid #ddd;
+          border-radius: 6px;
+          font-size: 14px;
+          cursor: pointer;
+        }
+
+        .error-message {
+          padding: 15px;
+          background-color: #ffebee;
+          color: #c62828;
+          border-radius: 8px;
+          margin-bottom: 20px;
+        }
+
+        .results-header {
+          margin-bottom: 20px;
+          color: #666;
+        }
+
+        .results-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+          gap: 20px;
+        }
+
+        .tab-card {
+          background: white;
+          border: 1px solid #e0e0e0;
+          border-radius: 8px;
+          padding: 20px;
+          cursor: pointer;
+          transition: all 0.3s;
+        }
+
+        .tab-card:hover {
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+          transform: translateY(-2px);
+        }
+
+        .tab-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 10px;
+        }
+
+        .tab-header h3 {
+          margin: 0;
+          font-size: 18px;
+          color: #333;
+        }
+
+        .source-badge {
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 11px;
+          font-weight: 600;
+          text-transform: uppercase;
+        }
+
+        .source-badge.user {
+          background-color: #e3f2fd;
+          color: #1976d2;
+        }
+
+        .source-badge.songsterr {
+          background-color: #fff3e0;
+          color: #f57c00;
+        }
+
+        .artist {
+          color: #666;
+          margin: 5px 0 15px 0;
+          font-size: 14px;
+        }
+
+        .tab-details {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+          margin-bottom: 10px;
+        }
+
+        .detail-badge {
+          padding: 4px 10px;
+          background-color: #f5f5f5;
+          border-radius: 12px;
+          font-size: 12px;
+          color: #555;
+        }
+
+        .tags {
+          display: flex;
+          gap: 6px;
+          flex-wrap: wrap;
+          margin-top: 10px;
+        }
+
+        .tag {
+          padding: 3px 8px;
+          background-color: #e8f5e9;
+          color: #2e7d32;
+          border-radius: 10px;
+          font-size: 11px;
+        }
+
+        .no-results,
+        .search-prompt {
+          text-align: center;
+          padding: 60px 20px;
+          color: #999;
+        }
+
+        .no-results p:first-child {
+          font-size: 18px;
+          color: #666;
+          margin-bottom: 10px;
+        }
+      `}</style>
     </div>
   );
-}
+};
+
+export default TabSearch;

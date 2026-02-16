@@ -4,7 +4,7 @@ import {
   signOut,
   onAuthStateChanged,
 } from "firebase/auth";
-import { auth } from "./firebase";
+import { auth } from "./firebaseConfig";
 
 const provider = new GoogleAuthProvider();
 
