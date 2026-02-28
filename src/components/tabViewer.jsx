@@ -3,95 +3,151 @@ import { getTabData } from './unifiedSearch';
 import { getSongsterrGuitarProUrl } from './songsterrApi';
 
 const TabViewer = ({ tab, onBack }) => {
-  const [tabData, setTabData] = useState(tab);
+  const [tabData, setTabData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedTrack, setSelectedTrack] = useState(null);
 
+  // Debugging: Log what we receive
   useEffect(() => {
-    // Reset state when tab changes
+    console.log('TabViewer received tab:', tab);
+    
+    // Validate tab prop
     if (!tab) {
+      console.error('TabViewer: No tab provided');
       setError('No tab data provided');
+      setTabData(null);
+      return;
+    }
+
+    if (!tab.id) {
+      console.error('TabViewer: Tab missing ID', tab);
+      setError('Invalid tab data: missing ID');
+      setTabData(null);
+      return;
+    }
+
+    if (!tab.source) {
+      console.error('TabViewer: Tab missing source', tab);
+      setError('Invalid tab data: missing source');
+      setTabData(null);
       return;
     }
     
+    // Set initial tab data
     setTabData(tab);
     setError(null);
+    setLoading(false);
     
     // If we don't have full details, fetch them
-    if (tab && !tab.tracks && tab.source === 'songsterr') {
-      loadFullTabData();
+    if (tab.source === 'songsterr' && !tab.tracks) {
+      loadFullTabData(tab);
     } else if (tab.tracks && tab.tracks.length > 0) {
       // Auto-select first guitar track
-      const guitarTrack = tab.tracks.find(t => 
-        t.name && t.name.toLowerCase().includes('guitar')
-      );
-      setSelectedTrack(guitarTrack || tab.tracks[0]);
+      selectInitialTrack(tab.tracks);
     }
   }, [tab]);
 
-  const loadFullTabData = async () => {
+  const selectInitialTrack = (tracks) => {
+    try {
+      const guitarTrack = tracks.find(t => 
+        t && t.name && t.name.toLowerCase().includes('guitar')
+      );
+      setSelectedTrack(guitarTrack || tracks[0]);
+    } catch (err) {
+      console.error('Error selecting initial track:', err);
+    }
+  };
+
+  const loadFullTabData = async (tabToLoad) => {
     setLoading(true);
     setError(null);
 
     try {
-      const fullData = await getTabData(tab.id, tab.source);
-      setTabData({ ...tab, ...fullData });
+      console.log('Loading full tab data for:', tabToLoad.id);
+      const fullData = await getTabData(tabToLoad.id, tabToLoad.source);
+      console.log('Full tab data loaded:', fullData);
+      
+      const mergedData = { ...tabToLoad, ...fullData };
+      setTabData(mergedData);
       
       // Auto-select first guitar track
       if (fullData.tracks && fullData.tracks.length > 0) {
-        const guitarTrack = fullData.tracks.find(t => 
-          t.name.toLowerCase().includes('guitar')
-        );
-        setSelectedTrack(guitarTrack || fullData.tracks[0]);
+        selectInitialTrack(fullData.tracks);
       }
     } catch (err) {
       console.error('Error loading tab data:', err);
-      setError('Failed to load tab details');
+      setError(`Failed to load tab details: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
   const downloadMidiFile = () => {
-    if (tabData.midiUrl) {
-      // For user uploads, open the Firebase Storage URL
-      window.open(tabData.midiUrl, '_blank');
+    try {
+      if (tabData && tabData.midiUrl) {
+        window.open(tabData.midiUrl, '_blank');
+      } else {
+        alert('MIDI file URL not available');
+      }
+    } catch (err) {
+      console.error('Error downloading MIDI:', err);
+      alert('Failed to download MIDI file');
     }
   };
 
   const openInSongsterr = () => {
-    if (tabData.songsterrId) {
-      window.open(
-        `https://www.songsterr.com/a/wsa/songsterr-${tabData.songsterrId}`,
-        '_blank'
-      );
+    try {
+      if (tabData && tabData.songsterrId) {
+        window.open(
+          `https://www.songsterr.com/a/wsa/songsterr-${tabData.songsterrId}`,
+          '_blank'
+        );
+      } else {
+        alert('Songsterr ID not available');
+      }
+    } catch (err) {
+      console.error('Error opening Songsterr:', err);
+      alert('Failed to open in Songsterr');
     }
   };
 
   const downloadGuitarPro = () => {
-    if (tabData.revisionId) {
-      const gpUrl = getSongsterrGuitarProUrl(tabData.revisionId);
-      window.open(gpUrl, '_blank');
+    try {
+      if (tabData && tabData.revisionId) {
+        const gpUrl = getSongsterrGuitarProUrl(tabData.revisionId);
+        window.open(gpUrl, '_blank');
+      } else {
+        alert('Guitar Pro file not available for this tab');
+      }
+    } catch (err) {
+      console.error('Error downloading Guitar Pro:', err);
+      alert('Failed to download Guitar Pro file');
     }
   };
 
+  // Render functions with safety checks
   const renderTrackSelector = () => {
-    if (!tabData || !tabData.tracks || tabData.tracks.length === 0) return null;
+    if (!tabData || !tabData.tracks || tabData.tracks.length === 0) {
+      return null;
+    }
 
     return (
       <div className="track-selector">
         <h4>Select Track:</h4>
         <div className="track-buttons">
-          {tabData.tracks.map((track, index) => (
-            <button
-              key={index}
-              className={`track-button ${selectedTrack?.name === track.name ? 'active' : ''}`}
-              onClick={() => setSelectedTrack(track)}
-            >
-              {track.name || `Track ${index + 1}`}
-            </button>
-          ))}
+          {tabData.tracks.map((track, index) => {
+            if (!track) return null;
+            return (
+              <button
+                key={index}
+                className={`track-button ${selectedTrack?.name === track.name ? 'active' : ''}`}
+                onClick={() => setSelectedTrack(track)}
+              >
+                {track.name || `Track ${index + 1}`}
+              </button>
+            );
+          })}
         </div>
       </div>
     );
@@ -135,7 +191,7 @@ const TabViewer = ({ tab, onBack }) => {
           )}
         </div>
 
-        {tabData.tags && tabData.tags.length > 0 && (
+        {tabData.tags && Array.isArray(tabData.tags) && tabData.tags.length > 0 && (
           <div className="tags">
             {tabData.tags.map((tag, index) => (
               <span key={index} className="tag">{tag}</span>
@@ -147,25 +203,25 @@ const TabViewer = ({ tab, onBack }) => {
   };
 
   const renderActions = () => {
-    if (!tabData) return null;
-    
     return (
       <div className="action-buttons">
         <button onClick={onBack} className="back-button">
           ← Back to Search
         </button>
 
-        {tabData.source === 'user_upload' && tabData.midiUrl && (
+        {tabData && tabData.source === 'user_upload' && tabData.midiUrl && (
           <button onClick={downloadMidiFile} className="download-button">
             📥 Download MIDI
           </button>
         )}
 
-        {tabData.source === 'songsterr' && (
+        {tabData && tabData.source === 'songsterr' && (
           <>
-            <button onClick={openInSongsterr} className="songsterr-button">
-              🎵 Open in Songsterr
-            </button>
+            {tabData.songsterrId && (
+              <button onClick={openInSongsterr} className="songsterr-button">
+                🎵 Open in Songsterr
+              </button>
+            )}
             {tabData.revisionId && (
               <button onClick={downloadGuitarPro} className="download-button">
                 📥 Download Guitar Pro
@@ -178,13 +234,12 @@ const TabViewer = ({ tab, onBack }) => {
   };
 
   const renderTabContent = () => {
-    // This is where you'd integrate your existing tab viewer/renderer
-    // For now, showing a placeholder that you can replace with your actual implementation
-    
     if (!tabData) {
       return (
         <div className="tab-content">
-          <p>No tab content available</p>
+          <div className="tab-placeholder">
+            <p>⚠️ No tab data available</p>
+          </div>
         </div>
       );
     }
@@ -193,58 +248,91 @@ const TabViewer = ({ tab, onBack }) => {
       return (
         <div className="tab-content">
           <div className="tab-placeholder">
-            <p>🎸 Tab Viewer</p>
+            <p style={{ fontSize: '48px', margin: '0 0 20px 0' }}>🎸</p>
+            <h3>Tab Viewer</h3>
             <p>Integrate your MIDI tab renderer here</p>
-            <p>MIDI File: {tabData.fileName || 'Unknown'}</p>
-            {selectedTrack && <p>Selected Track: {selectedTrack.name}</p>}
+            <div className="file-info">
+              <p><strong>MIDI File:</strong> {tabData.fileName || 'Unknown'}</p>
+              <p><strong>File Size:</strong> {tabData.fileSize ? `${(tabData.fileSize / 1024).toFixed(2)} KB` : 'Unknown'}</p>
+              {selectedTrack && <p><strong>Selected Track:</strong> {selectedTrack.name}</p>}
+            </div>
           </div>
           {/* Replace with your actual tab renderer component */}
           {/* <YourMidiRenderer midiUrl={tabData.midiUrl} /> */}
         </div>
       );
-    } else if (tabData.source === 'songsterr') {
+    } 
+    
+    if (tabData.source === 'songsterr') {
       return (
         <div className="tab-content">
           <div className="tab-placeholder">
-            <p>🎸 Songsterr Tab</p>
+            <p style={{ fontSize: '48px', margin: '0 0 20px 0' }}>🎸</p>
+            <h3>Songsterr Tab</h3>
             <p>This tab is available on Songsterr</p>
-            <p>Click "Open in Songsterr" to view the full tab</p>
+            <p>Click "Open in Songsterr" to view the full interactive tab</p>
             {selectedTrack && (
               <div className="track-info">
                 <h4>Selected Track: {selectedTrack.name}</h4>
-                {selectedTrack.tuning && <p>Tuning: {selectedTrack.tuning.join(' ')}</p>}
+                {selectedTrack.tuning && Array.isArray(selectedTrack.tuning) && (
+                  <p>Tuning: {selectedTrack.tuning.join(' ')}</p>
+                )}
               </div>
             )}
           </div>
-          {/* You could embed Songsterr's player here if they provide an embed option */}
         </div>
       );
     }
 
     return (
       <div className="tab-content">
-        <p>No tab content available</p>
+        <div className="tab-placeholder">
+          <p>⚠️ Unable to display this tab</p>
+          <p>Source: {tabData.source || 'Unknown'}</p>
+        </div>
       </div>
     );
   };
 
+  // Loading state
   if (loading) {
     return (
       <div className="tab-viewer loading">
-        <p>Loading tab...</p>
+        <div className="loading-spinner">
+          <div className="spinner"></div>
+          <p>Loading tab...</p>
+        </div>
       </div>
     );
   }
 
-  if (error || !tabData) {
+  // Error state
+  if (error) {
     return (
       <div className="tab-viewer error">
-        <p>{error || 'No tab data available'}</p>
-        <button onClick={onBack}>Back to Search</button>
+        <div className="error-content">
+          <h2>⚠️ Error</h2>
+          <p>{error}</p>
+          <button onClick={onBack} className="back-button">Back to Search</button>
+        </div>
       </div>
     );
   }
 
+  // No data state
+  if (!tabData) {
+    return (
+      <div className="tab-viewer error">
+        <div className="error-content">
+          <h2>⚠️ No Tab Data</h2>
+          <p>Unable to load tab information</p>
+          <button onClick={onBack} className="back-button">Back to Search</button>
+        </div>
+      </div>
+    );
+  }
+
+  // Main render
   return (
     <div className="tab-viewer">
       {renderActions()}
@@ -262,10 +350,46 @@ const TabViewer = ({ tab, onBack }) => {
         .tab-viewer.loading,
         .tab-viewer.error {
           display: flex;
-          flex-direction: column;
           align-items: center;
           justify-content: center;
           min-height: 400px;
+        }
+
+        .loading-spinner {
+          text-align: center;
+        }
+
+        .spinner {
+          border: 4px solid #f3f3f3;
+          border-top: 4px solid #4CAF50;
+          border-radius: 50%;
+          width: 40px;
+          height: 40px;
+          animation: spin 1s linear infinite;
+          margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        .error-content {
+          text-align: center;
+          padding: 40px;
+          background: white;
+          border-radius: 8px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .error-content h2 {
+          color: #d32f2f;
+          margin-bottom: 15px;
+        }
+
+        .error-content p {
+          color: #666;
+          margin-bottom: 20px;
         }
 
         .action-buttons {
@@ -346,6 +470,7 @@ const TabViewer = ({ tab, onBack }) => {
           font-size: 12px;
           font-weight: 600;
           text-transform: uppercase;
+          white-space: nowrap;
         }
 
         .source-badge.user {
@@ -444,9 +569,28 @@ const TabViewer = ({ tab, onBack }) => {
           color: #666;
         }
 
-        .tab-placeholder p:first-child {
-          font-size: 48px;
-          margin-bottom: 20px;
+        .tab-placeholder h3 {
+          color: #333;
+          margin-bottom: 15px;
+        }
+
+        .tab-placeholder p {
+          margin: 10px 0;
+        }
+
+        .file-info {
+          margin-top: 30px;
+          padding: 20px;
+          background-color: #f5f5f5;
+          border-radius: 8px;
+          text-align: left;
+          max-width: 400px;
+          margin-left: auto;
+          margin-right: auto;
+        }
+
+        .file-info p {
+          margin: 8px 0;
         }
 
         .track-info {
@@ -454,11 +598,18 @@ const TabViewer = ({ tab, onBack }) => {
           padding: 20px;
           background-color: #f5f5f5;
           border-radius: 8px;
+          max-width: 400px;
+          margin-left: auto;
+          margin-right: auto;
         }
 
         .track-info h4 {
           margin: 0 0 10px 0;
           color: #333;
+        }
+
+        .track-info p {
+          margin: 5px 0;
         }
       `}</style>
     </div>

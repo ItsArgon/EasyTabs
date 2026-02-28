@@ -1,0 +1,142 @@
+/* theme.css - Global dark theme with accent color variables */
+
+:root {
+  /* Dark theme base colors */
+  --bg-primary: #0f0f0f;
+  --bg-secondary: #1a1a1a;
+  --bg-tertiary: #242424;
+  --bg-hover: #2d2d2d;
+  --bg-elevated: #1f1f1f;
+  
+  /* Text colors for readability */
+  --text-primary: #ffffff;
+  --text-secondary: #a3a3a3;
+  --text-muted: #737373;
+  --text-inverse: #0f0f0f;
+  
+  /* Border colors */
+  --border-primary: #333333;
+  --border-secondary: #404040;
+  --border-focus: var(--accent-color);
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+  
+  /* Status colors */
+  --success: #22c55e;
+  --success-bg: #14532d;
+  --error: #ef4444;
+  --error-bg: #7f1d1d;
+  --warning: #f59e0b;
+  --warning-bg: #78350f;
+  --info: #3b82f6;
+  --info-bg: #1e3a8a;
+}
+
+/* Purple theme (default) */
+[data-theme="purple"] {
+  --accent-color: #9333ea;
+  --accent-hover: #a855f7;
+  --accent-light: #c084fc;
+  --accent-dark: #7e22ce;
+  --accent-bg: #581c87;
+  --accent-bg-subtle: rgba(147, 51, 234, 0.1);
+}
+
+/* Blue theme */
+[data-theme="blue"] {
+  --accent-color: #3b82f6;
+  --accent-hover: #60a5fa;
+  --accent-light: #93c5fd;
+  --accent-dark: #2563eb;
+  --accent-bg: #1e3a8a;
+  --accent-bg-subtle: rgba(59, 130, 246, 0.1);
+}
+
+/* Red theme */
+[data-theme="red"] {
+  --accent-color: #ef4444;
+  --accent-hover: #f87171;
+  --accent-light: #fca5a5;
+  --accent-dark: #dc2626;
+  --accent-bg: #7f1d1d;
+  --accent-bg-subtle: rgba(239, 68, 68, 0.1);
+}
+
+/* Global styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.6;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+}
+
+/* Ensure good contrast for links */
+a {
+  color: var(--accent-light);
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+a:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
+/* Scrollbar styling for dark theme */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bg-hover);
+  border-radius: 6px;
+  border: 2px solid var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-color);
+}
+
+/* Selection styling */
+::selection {
+  background-color: var(--accent-color);
+  color: var(--text-inverse);
+}
+
+/* Focus states for accessibility */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+/* Smooth transitions */
+* {
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}

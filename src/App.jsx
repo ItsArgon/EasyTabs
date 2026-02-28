@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import MidiUpload from './components/midiUpload';
+import { ThemeProvider } from './ThemeContext';
+import ThemeToggle from './ThemeToggle';
+import MidiUpload from './components/MidiUpload';
 import TabSearch from './components/TabSearch';
-import TabViewer from './components/tabViewerSafe';
-import FirebaseStorageDiagnostic from './components/FirebaseStorageDiagnostic';
-import './App.css'; // You'll need to create this for styling
+import TabViewer from './components/TabViewer';
+import './theme.css';
 
 function App() {
   const [selectedTab, setSelectedTab] = useState(null);
@@ -23,12 +24,10 @@ function App() {
   const handleUploadComplete = (tabData) => {
     console.log('Upload complete:', tabData);
     alert('Tab uploaded successfully!');
-    // Optionally switch to view the uploaded tab
     if (tabData && tabData.id) {
       setSelectedTab(tabData);
       setActiveView('view');
     } else {
-      // Just go back to search
       setActiveView('search');
     }
   };
@@ -39,156 +38,244 @@ function App() {
   };
 
   return (
-    <div className="app">
-      <nav className="navbar">
-        <div className="navbar-content">
-          <h1 className="app-title">🎸 Guitar Tabs</h1>
-          <div className="nav-buttons">
-            <button 
-              className={`nav-button ${activeView === 'search' ? 'active' : ''}`}
-              onClick={() => {
-                setActiveView('search');
-                setSelectedTab(null);
-              }}
-            >
-              🔍 Search
-            </button>
-            <button 
-              className={`nav-button ${activeView === 'upload' ? 'active' : ''}`}
-              onClick={() => {
-                setActiveView('upload');
-                setSelectedTab(null);
-              }}
-            >
-              📤 Upload
-            </button>
+    <ThemeProvider>
+      <div className="app">
+        <nav className="navbar">
+          <div className="navbar-content">
+            <div className="navbar-left">
+              <h1 className="app-title">
+                <span className="guitar-icon">🎸</span>
+                Guitar Tabs
+              </h1>
+            </div>
+            
+            <div className="navbar-center">
+              <div className="nav-buttons">
+                <button 
+                  className={`nav-button ${activeView === 'search' ? 'active' : ''}`}
+                  onClick={() => {
+                    setActiveView('search');
+                    setSelectedTab(null);
+                  }}
+                >
+                  <span className="nav-icon">🔍</span>
+                  Search
+                </button>
+                <button 
+                  className={`nav-button ${activeView === 'upload' ? 'active' : ''}`}
+                  onClick={() => {
+                    setActiveView('upload');
+                    setSelectedTab(null);
+                  }}
+                >
+                  <span className="nav-icon">📤</span>
+                  Upload
+                </button>
+              </div>
+            </div>
+
+            <div className="navbar-right">
+              <ThemeToggle />
+            </div>
           </div>
-        </div>
-      </nav>
+        </nav>
 
-      <main className="main-content">
-        {activeView === 'search' && (
-          <TabSearch onTabSelect={handleTabSelect} />
-        )}
-        
-        {activeView === 'upload' && (
-          <MidiUpload onUploadComplete={handleUploadComplete} />
-        )}
-        
-        {activeView === 'view' && selectedTab && (
-          <TabViewer 
-            tab={selectedTab} 
-            onBack={handleBackToSearch}
-          />
-        )}
+        <main className="main-content">
+          {activeView === 'search' && (
+            <TabSearch onTabSelect={handleTabSelect} />
+          )}
+          
+          {activeView === 'upload' && (
+            <MidiUpload onUploadComplete={handleUploadComplete} />
+          )}
+          
+          {activeView === 'view' && selectedTab && (
+            <TabViewer 
+              tab={selectedTab} 
+              onBack={handleBackToSearch}
+            />
+          )}
 
-        {activeView === 'view' && !selectedTab && (
-          <div className="error-state">
-            <h2>No tab selected</h2>
-            <p>Please select a tab from the search results.</p>
-            <button onClick={() => setActiveView('search')}>
-              Go to Search
-            </button>
-          </div>
-        )}
-      </main>
+          {activeView === 'view' && !selectedTab && (
+            <div className="error-state">
+              <h2>No tab selected</h2>
+              <p>Please select a tab from the search results.</p>
+              <button onClick={() => setActiveView('search')}>
+                Go to Search
+              </button>
+            </div>
+          )}
+        </main>
 
-      <style jsx>{`
-        .app {
-          min-height: 100vh;
-          background-color: #f5f5f5;
-        }
+        <style jsx>{`
+          .app {
+            min-height: 100vh;
+            background-color: var(--bg-primary);
+          }
 
-        .navbar {
-          background: white;
-          border-bottom: 1px solid #e0e0e0;
-          padding: 0;
-          position: sticky;
-          top: 0;
-          z-index: 100;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
+          .navbar {
+            background: var(--bg-elevated);
+            border-bottom: 1px solid var(--border-primary);
+            padding: 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow-md);
+          }
 
-        .navbar-content {
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 15px 20px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
+          .navbar-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 12px 24px;
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            gap: 20px;
+          }
 
-        .app-title {
-          margin: 0;
-          font-size: 24px;
-          color: #333;
-        }
+          .navbar-left {
+            display: flex;
+            align-items: center;
+          }
 
-        .nav-buttons {
-          display: flex;
-          gap: 10px;
-        }
+          .navbar-center {
+            display: flex;
+            justify-content: center;
+          }
 
-        .nav-button {
-          padding: 10px 20px;
-          border: 2px solid transparent;
-          background: #f5f5f5;
-          border-radius: 8px;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.3s;
-        }
+          .navbar-right {
+            display: flex;
+            justify-content: flex-end;
+          }
 
-        .nav-button:hover {
-          background: #e0e0e0;
-        }
+          .app-title {
+            margin: 0;
+            font-size: 24px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+          }
 
-        .nav-button.active {
-          background: #4CAF50;
-          color: white;
-        }
+          .guitar-icon {
+            font-size: 28px;
+          }
 
-        .main-content {
-          max-width: 1400px;
-          margin: 0 auto;
-          padding: 20px;
-        }
+          .nav-buttons {
+            display: flex;
+            gap: 8px;
+            background: var(--bg-secondary);
+            padding: 4px;
+            border-radius: 10px;
+          }
 
-        .error-state {
-          text-align: center;
-          padding: 60px 20px;
-          background: white;
-          border-radius: 8px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
+          .nav-button {
+            padding: 10px 20px;
+            border: 2px solid transparent;
+            background: transparent;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
 
-        .error-state h2 {
-          color: #333;
-          margin-bottom: 10px;
-        }
+          .nav-button:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+          }
 
-        .error-state p {
-          color: #666;
-          margin-bottom: 20px;
-        }
+          .nav-button.active {
+            background: var(--accent-color);
+            color: var(--text-inverse);
+          }
 
-        .error-state button {
-          padding: 12px 24px;
-          background: #4CAF50;
-          color: white;
-          border: none;
-          border-radius: 6px;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-        }
+          .nav-icon {
+            font-size: 18px;
+          }
 
-        .error-state button:hover {
-          background: #45a049;
-        }
-      `}</style>
-    </div>
+          .main-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+          }
+
+          .error-state {
+            text-align: center;
+            padding: 80px 20px;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-primary);
+          }
+
+          .error-state h2 {
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            font-size: 24px;
+          }
+
+          .error-state p {
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            font-size: 16px;
+          }
+
+          .error-state button {
+            padding: 12px 28px;
+            background: var(--accent-color);
+            color: var(--text-inverse);
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+          }
+
+          .error-state button:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+          }
+
+          /* Responsive design */
+          @media (max-width: 768px) {
+            .navbar-content {
+              grid-template-columns: 1fr;
+              gap: 12px;
+            }
+
+            .navbar-center {
+              order: 3;
+            }
+
+            .navbar-right {
+              order: 2;
+              justify-content: flex-start;
+            }
+
+            .app-title {
+              font-size: 20px;
+            }
+
+            .nav-buttons {
+              width: 100%;
+            }
+
+            .nav-button {
+              flex: 1;
+              justify-content: center;
+            }
+          }
+        `}</style>
+      </div>
+    </ThemeProvider>
   );
 }
 

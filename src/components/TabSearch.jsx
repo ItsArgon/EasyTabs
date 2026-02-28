@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { searchAllTabs, sortCombinedResults } from './unifiedSearch';
 
-const TabSearch = ({ onTabSelect }) => {
+const TabSearchDark = ({ onTabSelect }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [sortBy, setSortBy] = useState('relevance');
   const [filterInstrument, setFilterInstrument] = useState('');
-  const [activeTab, setActiveTab] = useState('all'); // 'all', 'user', 'songsterr'
+  const [activeTab, setActiveTab] = useState('all');
 
-  // Debounced search
   useEffect(() => {
     if (searchTerm.length < 2) {
       setSearchResults(null);
@@ -36,11 +35,6 @@ const TabSearch = ({ onTabSelect }) => {
         maxResults: 50
       });
 
-      console.log('Search results:', results);
-      console.log('User tabs:', results.userTabs);
-      console.log('Songsterr tabs:', results.songsterrTabs);
-      
-      // Validate results
       if (results.userTabs) {
         results.userTabs = results.userTabs.filter(tab => tab && tab.id && tab.source);
       }
@@ -64,8 +58,6 @@ const TabSearch = ({ onTabSelect }) => {
 
   const getFilteredResults = () => {
     const sorted = getSortedResults();
-    
-    // Filter out any null/undefined tabs
     const validTabs = sorted.filter(tab => tab && tab.id && tab.source);
     
     if (activeTab === 'user') {
@@ -90,9 +82,7 @@ const TabSearch = ({ onTabSelect }) => {
   };
 
   const renderTabCard = (tab) => {
-    // Safety check: return null if tab is invalid
     if (!tab || !tab.id || !tab.source) {
-      console.error('Invalid tab data:', tab);
       return null;
     }
     
@@ -105,13 +95,13 @@ const TabSearch = ({ onTabSelect }) => {
         onClick={() => handleTabClick(tab)}
       >
         <div className="tab-header">
-          <h3>{tab.title}</h3>
+          <h3>{tab.title || 'Untitled'}</h3>
           <span className={`source-badge ${isUserTab ? 'user' : 'songsterr'}`}>
             {isUserTab ? 'User Upload' : 'Songsterr'}
           </span>
         </div>
         
-        <p className="artist">{tab.artist}</p>
+        <p className="artist">{tab.artist || 'Unknown Artist'}</p>
         
         <div className="tab-details">
           {tab.instrument && (
@@ -144,8 +134,8 @@ const TabSearch = ({ onTabSelect }) => {
       <div className="search-header">
         <h2>Search Tabs</h2>
         
-        {/* Search Input */}
         <div className="search-input-wrapper">
+          <span className="search-icon">🔍</span>
           <input
             type="text"
             className="search-input"
@@ -153,12 +143,10 @@ const TabSearch = ({ onTabSelect }) => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          {loading && <span className="loading-spinner">🔄</span>}
+          {loading && <span className="loading-spinner">⟳</span>}
         </div>
 
-        {/* Filter Controls */}
         <div className="filter-controls">
-          {/* Source Tabs */}
           <div className="source-tabs">
             <button
               className={activeTab === 'all' ? 'active' : ''}
@@ -180,7 +168,6 @@ const TabSearch = ({ onTabSelect }) => {
             </button>
           </div>
 
-          {/* Sort By */}
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
@@ -191,7 +178,6 @@ const TabSearch = ({ onTabSelect }) => {
             <option value="date">Sort by Date</option>
           </select>
 
-          {/* Instrument Filter */}
           <select
             value={filterInstrument}
             onChange={(e) => setFilterInstrument(e.target.value)}
@@ -206,14 +192,12 @@ const TabSearch = ({ onTabSelect }) => {
         </div>
       </div>
 
-      {/* Error Message */}
       {error && (
         <div className="error-message">
           {error}
         </div>
       )}
 
-      {/* Results */}
       <div className="search-results">
         {searchResults && (
           <div className="results-header">
@@ -239,6 +223,7 @@ const TabSearch = ({ onTabSelect }) => {
           </div>
         ) : searchTerm.length < 2 && !loading ? (
           <div className="search-prompt">
+            <span className="prompt-icon">🎵</span>
             <p>Start typing to search for tabs...</p>
           </div>
         ) : null}
@@ -248,37 +233,56 @@ const TabSearch = ({ onTabSelect }) => {
         .tab-search-container {
           max-width: 1200px;
           margin: 0 auto;
-          padding: 20px;
         }
 
-        .search-header {
-          margin-bottom: 30px;
+        .search-header h2 {
+          color: var(--text-primary);
+          margin-bottom: 24px;
+          font-size: 28px;
         }
 
         .search-input-wrapper {
           position: relative;
-          margin: 20px 0;
+          margin-bottom: 24px;
+        }
+
+        .search-icon {
+          position: absolute;
+          left: 16px;
+          top: 50%;
+          transform: translateY(-50%);
+          font-size: 20px;
+          opacity: 0.5;
         }
 
         .search-input {
           width: 100%;
-          padding: 15px 50px 15px 15px;
+          padding: 16px 50px 16px 50px;
           font-size: 16px;
-          border: 2px solid #ddd;
-          border-radius: 8px;
-          transition: border-color 0.3s;
+          border: 2px solid var(--border-primary);
+          border-radius: 12px;
+          transition: all 0.3s;
+          background: var(--bg-secondary);
+          color: var(--text-primary);
         }
 
         .search-input:focus {
           outline: none;
-          border-color: #4CAF50;
+          border-color: var(--accent-color);
+          background: var(--bg-tertiary);
+          box-shadow: 0 0 0 4px var(--accent-bg-subtle);
+        }
+
+        .search-input::placeholder {
+          color: var(--text-muted);
         }
 
         .loading-spinner {
           position: absolute;
-          right: 15px;
+          right: 16px;
           top: 50%;
           transform: translateY(-50%);
+          font-size: 20px;
           animation: spin 1s linear infinite;
         }
 
@@ -289,55 +293,83 @@ const TabSearch = ({ onTabSelect }) => {
 
         .filter-controls {
           display: flex;
-          gap: 15px;
+          gap: 12px;
           flex-wrap: wrap;
           align-items: center;
+          margin-bottom: 24px;
         }
 
         .source-tabs {
           display: flex;
-          gap: 5px;
-          background-color: #f0f0f0;
+          gap: 6px;
+          background: var(--bg-secondary);
           padding: 4px;
-          border-radius: 8px;
+          border-radius: 10px;
         }
 
         .source-tabs button {
-          padding: 8px 16px;
+          padding: 10px 18px;
           border: none;
           background: transparent;
-          border-radius: 6px;
+          border-radius: 8px;
           cursor: pointer;
           font-size: 14px;
-          font-weight: 500;
+          font-weight: 600;
           transition: all 0.3s;
+          color: var(--text-secondary);
+        }
+
+        .source-tabs button:hover {
+          background: var(--bg-hover);
+          color: var(--text-primary);
         }
 
         .source-tabs button.active {
-          background-color: white;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          background: var(--accent-color);
+          color: var(--text-inverse);
         }
 
         .sort-select,
         .instrument-select {
-          padding: 8px 12px;
-          border: 1px solid #ddd;
-          border-radius: 6px;
+          padding: 10px 16px;
+          border: 1px solid var(--border-primary);
+          border-radius: 8px;
           font-size: 14px;
+          font-weight: 500;
           cursor: pointer;
+          background: var(--bg-secondary);
+          color: var(--text-primary);
+          transition: all 0.3s;
+        }
+
+        .sort-select:hover,
+        .instrument-select:hover {
+          border-color: var(--accent-color);
+        }
+
+        .sort-select:focus,
+        .instrument-select:focus {
+          outline: none;
+          border-color: var(--accent-color);
+          box-shadow: 0 0 0 3px var(--accent-bg-subtle);
         }
 
         .error-message {
-          padding: 15px;
-          background-color: #ffebee;
-          color: #c62828;
+          padding: 16px;
+          background: var(--error-bg);
+          color: var(--error);
           border-radius: 8px;
-          margin-bottom: 20px;
+          margin-bottom: 24px;
+          border-left: 4px solid var(--error);
         }
 
         .results-header {
           margin-bottom: 20px;
-          color: #666;
+        }
+
+        .results-header p {
+          color: var(--text-secondary);
+          font-size: 14px;
         }
 
         .results-grid {
@@ -347,101 +379,118 @@ const TabSearch = ({ onTabSelect }) => {
         }
 
         .tab-card {
-          background: white;
-          border: 1px solid #e0e0e0;
-          border-radius: 8px;
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-primary);
+          border-radius: 12px;
           padding: 20px;
           cursor: pointer;
           transition: all 0.3s;
         }
 
         .tab-card:hover {
-          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+          border-color: var(--accent-color);
+          box-shadow: var(--shadow-lg);
           transform: translateY(-2px);
+          background: var(--bg-tertiary);
         }
 
         .tab-header {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          margin-bottom: 10px;
+          margin-bottom: 12px;
+          gap: 12px;
         }
 
         .tab-header h3 {
           margin: 0;
           font-size: 18px;
-          color: #333;
+          color: var(--text-primary);
+          line-height: 1.4;
         }
 
         .source-badge {
-          padding: 4px 8px;
-          border-radius: 4px;
+          padding: 4px 10px;
+          border-radius: 6px;
           font-size: 11px;
-          font-weight: 600;
+          font-weight: 700;
           text-transform: uppercase;
+          white-space: nowrap;
+          letter-spacing: 0.5px;
         }
 
         .source-badge.user {
-          background-color: #e3f2fd;
-          color: #1976d2;
+          background: var(--accent-bg-subtle);
+          color: var(--accent-light);
+          border: 1px solid var(--accent-color);
         }
 
         .source-badge.songsterr {
-          background-color: #fff3e0;
-          color: #f57c00;
+          background: rgba(251, 146, 60, 0.1);
+          color: #fb923c;
+          border: 1px solid #ea580c;
         }
 
         .artist {
-          color: #666;
-          margin: 5px 0 15px 0;
-          font-size: 14px;
+          color: var(--text-secondary);
+          margin: 0 0 16px 0;
+          font-size: 15px;
         }
 
         .tab-details {
           display: flex;
           gap: 8px;
           flex-wrap: wrap;
-          margin-bottom: 10px;
+          margin-bottom: 12px;
         }
 
         .detail-badge {
-          padding: 4px 10px;
-          background-color: #f5f5f5;
-          border-radius: 12px;
-          font-size: 12px;
-          color: #555;
+          padding: 6px 12px;
+          background: var(--bg-hover);
+          border-radius: 6px;
+          font-size: 13px;
+          color: var(--text-secondary);
+          border: 1px solid var(--border-secondary);
         }
 
         .tags {
           display: flex;
           gap: 6px;
           flex-wrap: wrap;
-          margin-top: 10px;
+          margin-top: 12px;
         }
 
         .tag {
-          padding: 3px 8px;
-          background-color: #e8f5e9;
-          color: #2e7d32;
-          border-radius: 10px;
-          font-size: 11px;
+          padding: 4px 10px;
+          background: var(--accent-bg-subtle);
+          color: var(--accent-light);
+          border-radius: 6px;
+          font-size: 12px;
+          font-weight: 500;
         }
 
         .no-results,
         .search-prompt {
           text-align: center;
-          padding: 60px 20px;
-          color: #999;
+          padding: 80px 20px;
+          color: var(--text-secondary);
+        }
+
+        .prompt-icon {
+          font-size: 64px;
+          display: block;
+          margin-bottom: 16px;
+          opacity: 0.3;
         }
 
         .no-results p:first-child {
           font-size: 18px;
-          color: #666;
-          margin-bottom: 10px;
+          color: var(--text-primary);
+          margin-bottom: 8px;
         }
       `}</style>
     </div>
   );
 };
 
-export default TabSearch;
+export default TabSearchDark;
